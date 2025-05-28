@@ -1,0 +1,28 @@
+# Emacs backup, auto-save, and lock files
+*~
+#*
+.#*
+
+# Emacs auto-save list
+emacs/auto-save-list/
+
+# Package management and compilation
+elpa/
+eln-cache/
+*.eln
+
+# Customization file
+custom.el
+
+# Org-mode generated files
+*.org-id-locations
+
+# Projectile cache and bookmarks
+.projectile
+projectile-bookmarks.eld
+
+# Recent files
+recentf
+
+# MacOS system files
+.DS_Store 
