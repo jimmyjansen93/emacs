@@ -12,6 +12,11 @@
   (package-install 'use-package))
 (require 'use-package)
 (setq use-package-always-ensure t)
+(setq use-package-always-defer 1)
+
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+(when (file-exists-p custom-file)
+  (load custom-file))
 
 (setq make-backup-files nil)
 (setq auto-save-default nil)
@@ -28,8 +33,9 @@
 
 (set-face-attribute 'default nil :font "FiraCode Nerd Font" :height 130)
 
-(setq evil-want-C-u-scroll t)
 (use-package evil
+  :preface
+  (setq evil-want-C-u-scroll t)
   :init
   (setq evil-want-integration t)
   (setq evil-want-keybinding nil)
@@ -38,6 +44,7 @@
 
 (use-package evil-collection
   :after evil
+  :if (package-installed-p 'evil)
   :config
   (evil-collection-init))
 
@@ -69,22 +76,28 @@
         lsp-prefer-flymake nil))
 
 (use-package lsp-ui
+  :if (package-installed-p 'lsp-mode)
   :after lsp-mode
   :commands lsp-ui-mode)
 
-(use-package lsp-treemacs
-  :after lsp-mode
-  :commands lsp-treemacs-errors-list)
-
-(use-package go-mode)
-(use-package kotlin-mode)
-(use-package lua-mode)
-(use-package markdown-mode)
-(use-package php-mode)
-(use-package rust-mode)
-(use-package typescript-mode)
-(use-package yaml-mode)
-(use-package zig-mode)
+(use-package go-mode
+  :if (package-installed-p 'lsp-mode))
+(use-package kotlin-mode
+  :if (package-installed-p 'lsp-mode))
+(use-package lua-mode
+  :if (package-installed-p 'lsp-mode))
+(use-package markdown-mode
+  :if (package-installed-p 'lsp-mode))
+(use-package php-mode
+  :if (package-installed-p 'lsp-mode))
+(use-package rust-mode
+  :if (package-installed-p 'lsp-mode))
+(use-package typescript-mode
+  :if (package-installed-p 'lsp-mode))
+(use-package yaml-mode
+  :if (package-installed-p 'lsp-mode))
+(use-package zig-mode
+  :if (package-installed-p 'lsp-mode))
 
 (use-package doom-themes
   :config
@@ -94,10 +107,12 @@
   :init (doom-modeline-mode 1))
 
 (use-package nerd-icons)
+(use-package all-the-icons
+  :ensure t
+  :if (display-graphic-p))
 
-(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-(when (file-exists-p custom-file)
-  (load custom-file))
+(use-package all-the-icons-dired
+  :hook (dired-mode . (lambda () (all-the-icons-dired-mode t))))
 
 (use-package projectile
   :diminish projectile-mode
@@ -112,20 +127,18 @@
   (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map))
 
 (use-package vertico
-  :ensure t
   :init
   (vertico-mode 1)
   (setq vertico-count 40))
 
 (use-package orderless
-  :ensure t
   :init
   (setq completion-styles '(orderless basic)
         completion-category-defaults nil
         completion-category-overrides '((file (styles partial-completion)))))
 
 (use-package marginalia
-  :ensure t
+  :if (package-installed-p 'vertico)
   :after vertico
   :init
   (marginalia-mode 1))
@@ -140,6 +153,8 @@
 
 (use-package format-all
   :hook (prog-mode . format-all-ensure-formatter))
+
+(use-package ivy)
 
 (use-package general
   :config
