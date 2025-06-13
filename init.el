@@ -1,3 +1,5 @@
+;;; init.el --- Personal Emacs configuration -*- lexical-binding: t -*-
+
 (setenv "PATH" (concat "/opt/homebrew/bin:" (getenv "PATH")))
 (add-to-list 'exec-path "/opt/homebrew/bin")
 
@@ -7,195 +9,303 @@
 (package-initialize)
 (unless package-archive-contents
   (package-refresh-contents))
-
 (unless (package-installed-p 'use-package)
   (package-install 'use-package))
 (require 'use-package)
-(setq use-package-always-ensure t)
-(setq use-package-always-defer 1)
+(setq use-package-always-ensure t
+      use-package-expand-minimally t
+      use-package-enable-imenu-support t)
 
-(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-(when (file-exists-p custom-file)
-  (load custom-file))
+(setq inhibit-startup-message t
+      ring-bell-function #'ignore
+      make-backup-files nil
+      auto-save-default nil
+      create-lockfiles nil
+      native-comp-async-report-warnings-errors nil
+      warning-minimum-level :error
+      split-width-threshold 0
+      split-height-threshold nil)
 
-(setq make-backup-files nil)
-(setq auto-save-default nil)
-(setq create-lockfiles nil)
-
-(setq inhibit-startup-message t)
 (menu-bar-mode -1)
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
 (global-display-line-numbers-mode 1)
 (column-number-mode 1)
 (show-paren-mode 1)
-(setq ring-bell-function 'ignore)
-
 (set-face-attribute 'default nil :font "FiraCode Nerd Font" :height 130)
 
+(use-package doom-themes
+  :demand t
+  :config (load-theme 'doom-tokyo-night t))
+
+(use-package doom-modeline
+  :hook (after-init . doom-modeline-mode))
+
+(use-package no-littering
+  :demand t)
+
+(use-package super-save
+  :diminish
+  :config (super-save-mode 1))
+
+(when (fboundp 'global-tree-sitter-mode)
+  (use-package tree-sitter
+    :demand t
+    :config (global-tree-sitter-mode))
+  (use-package tree-sitter-langs
+    :after tree-sitter)
+  (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
+
+(use-package vertico
+  :demand t
+  :init (vertico-mode 1))
+
+(use-package orderless
+  :demand t
+  :init (setq completion-styles '(orderless basic)))
+
+(use-package marginalia
+  :demand t
+  :init (marginalia-mode 1))
+
+(use-package consult
+  :after vertico
+  :bind (("C-s" . consult-line)
+         ("C-x b" . consult-buffer)
+         ("C-x C-r" . consult-recent-file)))
+
+(use-package consult-dir
+  :after consult
+  :bind (("C-x C-d" . consult-dir)))
+
+(use-package consult-project-extra
+  :after consult
+  :defer t
+  :commands consult-project-extra-find
+  :bind (("C-c p f" . consult-project-extra-find)))
+
+(use-package embark
+  :bind (("C-." . embark-act)
+         ("C-;" . embark-dwim))
+  :init (setq prefix-help-command #'embark-prefix-help-command))
+
+(use-package embark-consult
+  :after (embark consult))
+
 (use-package evil
-  :preface
-  (setq evil-want-C-u-scroll t)
-  :init
-  (setq evil-want-integration t)
-  (setq evil-want-keybinding nil)
+  :preface (setq evil-want-C-u-scroll t
+                 evil-want-keybinding nil)
   :config
-  (evil-mode 1))
+  (evil-mode 1)
+  (define-key evil-normal-state-map (kbd "C-w") 'evil-window-map))
+
+(use-package evil-surround
+  :after evil
+  :config (global-evil-surround-mode 1))
 
 (use-package evil-collection
   :after evil
-  :if (package-installed-p 'evil)
-  :config
-  (evil-collection-init))
+  :config (evil-collection-init))
 
-(use-package which-key
+(use-package undo-fu
+  :after evil
+  :bind (:map evil-normal-state-map
+              ("u" . undo-fu-only-undo)
+              ("C-r" . undo-fu-only-redo)))
+
+(use-package evil-mc
+  :after evil
+  :defer t
+  :hook (evil-mode . global-evil-mc-mode))
+
+(use-package avy
+  :bind (("C-'" . avy-goto-char-2)))
+
+(use-package ace-window
+  :bind (("M-o" . ace-window)))
+
+(use-package symbol-overlay
+  :hook (prog-mode . symbol-overlay-mode))
+
+(use-package imenu-list
+  :commands imenu-list-smart-toggle)
+
+(use-package expand-region
+  :bind (("C-=" . er/expand-region)))
+
+(use-package popper
+  :defer t
+  :bind (("C-`" . popper-toggle)
+         ("M-`" . popper-cycle)
+         ("C-M-`" . popper-toggle-type))
+  :init
+  (setq popper-reference-buffers
+        '(" *Messages*"
+          " *Warnings*"
+          " *Help*"
+          "^\\*Flycheck.*"
+          "^\\*Embark.*"
+          "^\\*Compilation.*"
+          "^\\*xref.*"))
   :config
-  (which-key-mode))
+  (popper-mode 1)
+  (popper-echo-mode 1))
+
+(use-package magit
+  :defer t
+  :commands magit-status)
+
+(use-package forge
+  :after magit
+  :defer t)
+
+(use-package magit-todos
+  :after magit
+  :defer t
+  :hook (magit-mode . magit-todos-mode))
+
+(use-package diff-hl
+  :hook ((prog-mode . diff-hl-mode)
+         (dired-mode . diff-hl-dired-mode)
+         (magit-post-refresh . diff-hl-magit-post-refresh)))
 
 (use-package company
-  :hook (after-init . global-company-mode))
+  :hook (after-init . global-company-mode)
+  :bind (:map company-mode-map
+              ("C-SPC" . company-complete)
+         :map company-active-map
+              ("C-SPC" . company-complete)
+              ("C-y" . company-complete-selection)
+              ("TAB" . nil)
+              ("<tab>" . nil))
+  :config
+  (setq company-idle-delay nil
+        company-minimum-prefix-length 1))
+
+(use-package flycheck
+  :hook (after-init . global-flycheck-mode))
 
 (use-package lsp-mode
+  :defer t
   :commands (lsp lsp-deferred)
   :init
   (setq lsp-keymap-prefix "C-c l")
-  :hook ((bash-mode . lsp-deferred)
-         (go-mode . lsp-deferred)
-         (java-mode . lsp-deferred)
-         (kotlin-mode . lsp-deferred)
-         (lua-mode . lsp-deferred)
-         (markdown-mode . lsp-deferred)
-         (php-mode . lsp-deferred)
-         (rust-mode . lsp-deferred)
-         (sh-mode . lsp-deferred)
-         (typescript-mode . lsp-deferred)
-         (yaml-mode . lsp-deferred)
-         (zig-mode . lsp-deferred))
+  :hook ((go-mode kotlin-mode lua-mode php-mode rust-mode typescript-mode yaml-mode zig-mode) . lsp-deferred)
   :config
   (setq lsp-enable-snippet t
-        lsp-prefer-flymake nil))
+        lsp-prefer-flymake nil)
+  (with-eval-after-load 'lsp-mode
+    (require 'lsp-json)
+    (require 'lsp-yaml)))
 
 (use-package lsp-ui
-  :if (package-installed-p 'lsp-mode)
   :after lsp-mode
+  :defer t
   :commands lsp-ui-mode)
 
-(use-package go-mode
-  :if (package-installed-p 'lsp-mode))
-(use-package kotlin-mode
-  :if (package-installed-p 'lsp-mode))
-(use-package lua-mode
-  :if (package-installed-p 'lsp-mode))
-(use-package markdown-mode
-  :if (package-installed-p 'lsp-mode))
-(use-package php-mode
-  :if (package-installed-p 'lsp-mode))
+(use-package lsp-treemacs
+  :after lsp-mode
+  :defer t)
+
+(use-package consult-lsp
+  :after (consult lsp-mode)
+  :defer t
+  :commands consult-lsp-symbols)
+
+(use-package go-mode :defer t)
+(use-package kotlin-mode :defer t)
+(use-package lua-mode :defer t)
+(use-package markdown-mode :defer t)
+(use-package php-mode :defer t)
 (use-package rust-mode
-  :if (package-installed-p 'lsp-mode))
-(use-package typescript-mode
-  :if (package-installed-p 'lsp-mode))
-(use-package yaml-mode
-  :if (package-installed-p 'lsp-mode))
-(use-package zig-mode
-  :if (package-installed-p 'lsp-mode))
-
-(use-package doom-themes
-  :config
-  (load-theme 'doom-tokyo-night t))
-
-(use-package doom-modeline
-  :init (doom-modeline-mode 1))
-
-(use-package nerd-icons)
-(use-package all-the-icons
-  :ensure t
-  :if (display-graphic-p))
-
-(use-package all-the-icons-dired
-  :hook (dired-mode . (lambda () (all-the-icons-dired-mode t))))
+  :defer t
+  :hook (rust-mode . (lambda () (setq-local rust-format-on-save t))))
+(use-package cargo
+  :after rust-mode
+  :defer t
+  :hook (rust-mode . cargo-minor-mode))
+(use-package typescript-mode :defer t)
+(use-package yaml-mode :defer t)
+(use-package zig-mode :defer t)
+(use-package yasnippet
+  :defer t
+  :hook (prog-mode . yas-minor-mode))
+(use-package yasnippet-snippets
+  :after yasnippet
+  :defer t)
 
 (use-package projectile
-  :diminish projectile-mode
+  :diminish
+  :demand t
   :config
-  (setq projectile-project-search-path
-        '("~/.config"
-          "~/projects/work"
-          "~/projects/private"))
-  (projectile-mode 1)
-  (projectile-discover-projects-in-search-path)
-  (setq projectile-completion-system 'ivy)
-  (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map))
+  (setq projectile-project-search-path '("~/projects/work" "~/projects/private"))
+  (projectile-mode 1))
 
-(use-package vertico
-  :init
-  (vertico-mode 1)
-  (setq vertico-count 40))
+(use-package perspective
+  :demand t
+  :init (setq persp-suppress-no-prefix-key-warning t)
+  :config (persp-mode))
 
-(use-package orderless
-  :init
-  (setq completion-styles '(orderless basic)
-        completion-category-defaults nil
-        completion-category-overrides '((file (styles partial-completion)))))
+(use-package nerd-icons :if (display-graphic-p) :defer t)
+(use-package all-the-icons :if (display-graphic-p) :defer t)
+(use-package all-the-icons-dired :if (display-graphic-p) :defer t :hook (dired-mode . all-the-icons-dired-mode))
+(use-package which-key :demand t :diminish :config (which-key-mode 1))
 
-(use-package marginalia
-  :if (package-installed-p 'vertico)
-  :after vertico
-  :init
-  (marginalia-mode 1))
-
-(use-package magit)
-
-(use-package flycheck
-  :init (global-flycheck-mode))
-
-(use-package vterm
-  :commands vterm)
-
-(use-package format-all
-  :hook (prog-mode . format-all-ensure-formatter))
-
-(use-package ivy)
+(use-package vterm :defer t :commands vterm)
+(use-package format-all :defer t :hook (prog-mode . format-all-ensure-formatter))
 
 (use-package general
+  :demand t
   :config
-  (general-create-definer my/leader-keys
-    :keymaps '(normal insert visual emacs)
-    :prefix "SPC"
-    :global-prefix "C-SPC")
-  (my/leader-keys
-    ":"  '(execute-extended-command :which-key "M-x")
-    "," '(recentf-open-files :which-key "recent files")
-    "f"  '(:ignore t :which-key "files")
-    "ff" '(find-file :which-key "find file")
-    "fr" '(recentf-open-files :which-key "recent files")
-    "fd" '(my/dired-maximize :which-key "dired (maximize, q to restore)")
-    "p"  '(:ignore t :which-key "project")
-    "pp" '(projectile-switch-project :which-key "Projects list")
-    "pd" '(my/projectile-dired-maximize :which-key "projectile-dired (maximize, q to restore)")
-    "h"  '(:ignore t :which-key "help")
-    "hr" '(:ignore t :which-key "reload")
-    "hrr" '(my/reload-config :which-key "reload config")
-    "b"  '(:ignore t :which-key "buffers")
-    "bb" '(ivy-switch-buffer :which-key "switch buffer")
-    "w"  '(:ignore t :which-key "windows")
-    "q"  '(:ignore t :which-key "quit")
-    "g"  '(:ignore t :which-key "git")
-    "gs" '(magit-status :which-key "status")
-    "t"  '(:ignore t :which-key "toggle")
+  (general-create-definer my/leader :keymaps '(normal visual) :prefix "SPC")
+  (my/leader
+    "b" '(:ignore t :which-key "buffers")
+    "bb" '(consult-buffer :which-key "switch")
+    "bsh" '(bsh :which-key "hsplit")
+    "bsv" '(bsv :which-key "vsplit")
+    "c" '(:ignore t :which-key "code")
+    "ca" '(lsp-execute-code-action :which-key "code action")
+    "cb" '(compile :which-key "compile")
+    "cc" '(lsp-rename :which-key "rename")
+    "cd" '(lsp-ui-flycheck-list :which-key "diagnostics")
+    "cD" '(lsp-treemacs-errors-list :which-key "proj diag")
+    "ce" '(flycheck-list-errors :which-key "buffer diag")
+    "cf" '(lsp-format-buffer :which-key "lsp format")
+    "cF" '(format-all-buffer :which-key "fmt all")
+    "ch" '(lsp-describe-thing-at-point :which-key "describe")
+    "ci" '(lsp-find-implementation :which-key "impl")
+    "cl" '(lsp-ui-flycheck-list :which-key "diag list")
+    "cr" '(recompile :which-key "recompile")
+    "cs" '(lsp-signature-help :which-key "signature")
+    "ct" '(projectile-test-project :which-key "test")
+    "f" '(:ignore t :which-key "files")
+    "fd" '(my/dired-maximize :which-key "dired")
+    "ff" '(find-file :which-key "find")
+    "fr" '(consult-recent-file :which-key "recent")
+    "g" '(:ignore t :which-key "git")
+    "gg" '(magit-status :which-key "status")
+    "h" '(:ignore t :which-key "help")
+    "hrr" '(my/reload-config :which-key "reload")
+    "p" '(:ignore t :which-key "project")
+    "pp" '(projectile-switch-project :which-key "switch")
+    "pf" '(projectile-find-file :which-key "find file")
+    "pb" '(projectile-switch-to-buffer :which-key "switch buffer")
+    "pK" '(projectile-kill-buffers :which-key "kill buffers")
+    "pd" '(my/projectile-dired-maximize :which-key "dired max")
+    "s" '(:ignore t :which-key "search")
+    "sp" '(consult-ripgrep :which-key "ripgrep")
+    "si" '(consult-imenu :which-key "imenu")
+    "t" '(:ignore t :which-key "toggles")
     "tt" '(treemacs :which-key "treemacs")
-    "v"  '(:ignore t :which-key "vterm")
-    "vv" '(vterm :which-key "vterm")
-    ))
+    "w" '(:ignore t :which-key "window")
+    "wo" '(ace-window :which-key "ace")
+    "wd" '(delete-window :which-key "delete")
+    "v" '(:ignore t :which-key "vterm")
+    "vv" '(vterm :which-key "vterm")))
 
-(use-package recentf
-  :config
-  (recentf-mode 1)
-  (setq recentf-max-menu-items 25))
-(defvar my/dired-window-config nil
-  "Window configuration before opening full-frame Dired.")
+(defvar my/dired-window-config nil)
 
 (defun my/dired-maximize ()
-  "Open Dired in the whole frame, but allow easy restoration."
   (interactive)
   (setq my/dired-window-config (current-window-configuration))
   (dired default-directory)
@@ -206,31 +316,21 @@
     (use-local-map map)))
 
 (defun my/dired-restore-windows ()
-  "Restore the previous window configuration and kill Dired buffer."
   (interactive)
   (when my/dired-window-config
     (set-window-configuration my/dired-window-config)
     (setq my/dired-window-config nil)))
 
-(defun my/projectile-dired-maximize ()
-  "Open projectile-dired in the whole frame, but allow easy restoration."
-  (interactive)
-  (setq my/dired-window-config (current-window-configuration))
-  (projectile-dired)
-  (delete-other-windows)
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map (current-local-map))
-    (define-key map (kbd "q") #'my/dired-restore-windows)
-    (use-local-map map)))
-
-(with-eval-after-load 'evil
-  (require 'evil))
-(with-eval-after-load 'projectile
-  (require 'projectile))
-
 (defun my/reload-config ()
-  "Reload the Emacs config (init.el) without restarting."
   (interactive)
   (load-file (expand-file-name "init.el" user-emacs-directory)))
 
-(provide 'init)
+(defun bsh ()
+  (interactive)
+  (split-window-below)
+  (other-window 1))
+
+(defun bsv ()
+  (interactive)
+  (split-window-right)
+  (other-window 1))
