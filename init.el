@@ -237,7 +237,9 @@
   :diminish
   :demand t
   :config
-  (setq projectile-project-search-path '("~/.config/" "~/projects/work" "~/projects/private"))
+  (setq projectile-project-search-path
+        '("~/.config/" "~/projects/work" "~/projects/private"))
+  (projectile-discover-projects-in-search-path)
   (projectile-mode 1))
 
 (use-package perspective
