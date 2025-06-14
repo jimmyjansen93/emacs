@@ -1,4 +1,8 @@
-;;; init.el --- An enhanced configuration for Rust and JS/TS development -*- lexical-binding: t -*-
+;;; init.el --- Private emacs config -*- lexical-binding: t -*-
+;;; Commentary:
+;;;     MY private config where I just do whatever because I don't understand whatever
+;;;     the hell I am doing.
+;;; Code:
 (setenv "PATH" (concat "/opt/homebrew/bin:" (getenv "PATH")))
 (add-to-list 'exec-path "/opt/homebrew/bin")
 
