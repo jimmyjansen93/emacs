@@ -1,56 +1,32 @@
-# Emacs backup, auto-save, and lock files
 *~
 #*
 .#*
-
-# Emacs auto-save list (session recovery)
 auto-save-list/
-
-# Emacs desktop session files
 .emacs.desktop
 .emacs.desktop.lock
-
 transient/
-
-# Compiled elisp files
 *.elc
 *.eln
 eln-cache/
-
-# Package management
 elpa/
-
-# Customization and configuration
+straight/
+straight/build/
+straight/versions/
 custom.el
 .dir-locals.el
 network-security.data
-
-# Org-mode
 *.org-id-locations
 *_archive
-
-# Projectile
 .projectile
 projectile-bookmarks.eld
 var/
-
-# Recent files
 recentf
-
-# TRAMP
 tramp
-
-# Flymake and Flycheck
 *_flymake.*
 flycheck_*.el
-
-# Eshell
 eshell/history
 eshell/lastdir
-
-# Emacs server
-auto-save-list/
 server/
-
-# macOS system files
-.DS_Store 
+.DS_Store
+.idea/
+.vscode/

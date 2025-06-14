@@ -4,18 +4,35 @@
 (setenv "PATH" (concat "/opt/homebrew/bin:" (getenv "PATH")))
 (add-to-list 'exec-path "/opt/homebrew/bin")
 
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+(when (file-exists-p custom-file) (load custom-file))
+
+(setq package-enable-at-startup nil)
 (require 'package)
 (setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                         ("gnu" . "https://elpa.gnu.org/packages/")))
+                         ("gnu"   . "https://elpa.gnu.org/packages/")))
 (package-initialize)
-(unless package-archive-contents
-  (package-refresh-contents))
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
+
+(defvar bootstrap-version 6)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el"
+                         user-emacs-directory)))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+(setq straight-use-package-by-default t)
+(straight-use-package 'use-package)
 (require 'use-package)
-(setq use-package-always-ensure t
-      use-package-expand-minimally t
-      use-package-enable-imenu-support t)
+
+(setq use-package-expand-minimally t
+      use-package-enable-imenu-support t
+      warning-minimum-level :error)
 
 (setq inhibit-startup-message t
       ring-bell-function #'ignore
@@ -295,7 +312,7 @@
     "pK" '(projectile-kill-buffers :which-key "kill buffers")
     "pd" '(my/projectile-dired-maximize :which-key "dired max")
     "s" '(:ignore t :which-key "search")
-    "sp" '(consult-ripgrep :which-key "ripgrep")
+    "sr" '(consult-ripgrep :which-key "ripgrep")
     "si" '(consult-imenu :which-key "imenu")
     "t" '(:ignore t :which-key "toggles")
     "tt" '(treemacs :which-key "treemacs")
@@ -304,6 +321,12 @@
     "wd" '(delete-window :which-key "delete")
     "v" '(:ignore t :which-key "vterm")
     "vv" '(vterm :which-key "vterm")))
+
+(use-package nerd-icons-which-key
+  :straight (nerd-icons-which-key
+             :type git :host github :repo "jdtsmith/nerd-icons-which-key")
+  :after (which-key nerd-icons)
+  :config (nerd-icons-which-key-mode))
 
 (defvar my/dired-window-config nil)
 
@@ -343,15 +366,3 @@
   (other-window 1))
 
 ;;; init.el ends here
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(native-comp-async-report-warnings-errors nil))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
