@@ -1,5 +1,11 @@
 ;;; init.el --- my config -*- lexical-binding: t -*-
-;;; Commentary: Personal Emacs configuration
+
+;;; Commentary:
+;;
+;; Personal Emacs configuration.
+;;
+
+;;; Code:
 
 (setenv "PATH" (concat "/opt/homebrew/bin:" (getenv "PATH")))
 (add-to-list 'exec-path "/opt/homebrew/bin")
@@ -51,12 +57,17 @@
 (show-paren-mode 1)
 (set-face-attribute 'default nil :font "FiraCode Nerd Font" :height 130)
 
+(use-package recentf
+  :straight (:type built-in)
+  :init
+  (setq recentf-max-saved-items 200
+        recentf-save-file (locate-user-emacs-file "recentf")
+        recentf-auto-cleanup 'never)
+  (recentf-mode 1))
+
 (use-package doom-themes
   :demand t
   :config (load-theme 'doom-tokyo-night t))
-
-(use-package doom-modeline
-  :hook (after-init . doom-modeline-mode))
 
 (use-package no-littering
   :demand t)
@@ -109,6 +120,10 @@
 (use-package embark-consult
   :after (embark consult))
 
+;; This ensures straight.el installs the package. The setup is handled below.
+(use-package dired-isearch
+  :straight t)
+
 (use-package evil
   :preface (setq evil-want-C-u-scroll t
                  evil-want-keybinding nil)
@@ -122,7 +137,8 @@
 
 (use-package evil-collection
   :after evil
-  :config (evil-collection-init))
+  :config
+  (evil-collection-init))
 
 (use-package undo-fu
   :after evil
@@ -190,7 +206,7 @@
   :hook (after-init . global-company-mode)
   :bind (:map company-mode-map
               ("C-SPC" . company-complete)
-         :map company-active-map
+              :map company-active-map
               ("C-SPC" . company-complete)
               ("C-y" . company-complete-selection)
               ("TAB" . nil)
@@ -264,6 +280,14 @@
   :init (setq persp-suppress-no-prefix-key-warning t)
   :config (persp-mode))
 
+(use-package persp-projectile
+  :after (projectile perspective)
+  :config
+  (require 'persp-projectile))
+
+(use-package doom-modeline
+  :hook (after-init . doom-modeline-mode))
+
 (use-package nerd-icons :if (display-graphic-p) :defer t)
 (use-package all-the-icons :if (display-graphic-p) :defer t)
 (use-package all-the-icons-dired :if (display-graphic-p) :defer t :hook (dired-mode . all-the-icons-dired-mode))
@@ -277,6 +301,8 @@
   :config
   (general-create-definer my/leader :keymaps '(normal visual) :prefix "SPC")
   (my/leader
+    "SPC" '(find-file :which-key "find file")
+    ","   '(consult-project-extra-find :which-key "recent")
     ":" '(execute-extended-command :which-key "M-x")
     "b" '(:ignore t :which-key "buffers")
     "bb" '(consult-buffer :which-key "switch")
@@ -306,32 +332,26 @@
     "h" '(:ignore t :which-key "help")
     "hrr" '(my/reload-config :which-key "reload")
     "p" '(:ignore t :which-key "project")
-    "pp" '(projectile-switch-project :which-key "switch")
+    "pp" 'projectile-persp-switch-project
     "pf" '(projectile-find-file :which-key "find file")
     "pb" '(projectile-switch-to-buffer :which-key "switch buffer")
     "pK" '(projectile-kill-buffers :which-key "kill buffers")
+    "ps" '(persp-switch :which-key "switch perspective")
     "pd" '(my/projectile-dired-maximize :which-key "dired max")
     "s" '(:ignore t :which-key "search")
     "sr" '(consult-ripgrep :which-key "ripgrep")
     "si" '(consult-imenu :which-key "imenu")
     "t" '(:ignore t :which-key "toggles")
-    "tt" '(treemacs :which-key "treemacs")
+    "tv" '(vterm :which-key "vterm")
     "w" '(:ignore t :which-key "window")
     "wo" '(ace-window :which-key "ace")
-    "wd" '(delete-window :which-key "delete")
-    "v" '(:ignore t :which-key "vterm")
-    "vv" '(vterm :which-key "vterm")))
+    "wd" '(delete-window :which-key "delete")))
 
-(use-package nerd-icons-which-key
-  :straight (nerd-icons-which-key
-             :type git :host github :repo "jdtsmith/nerd-icons-which-key")
-  :after (which-key nerd-icons)
-  :config (nerd-icons-which-key-mode))
+(define-key evil-ex-map "q" 'kill-this-buffer)
 
 (defvar my/dired-window-config nil)
 
 (defun my/dired-maximize ()
-  "Dired maximize."
   (interactive)
   (setq my/dired-window-config (current-window-configuration))
   (dired default-directory)
@@ -341,26 +361,33 @@
     (define-key map (kbd "q") #'my/dired-restore-windows)
     (use-local-map map)))
 
+(defun my/projectile-dired-maximize ()
+  (interactive)
+  (when-let ((root (projectile-project-root)))
+    (setq my/dired-window-config (current-window-configuration))
+    (dired root)
+    (delete-other-windows)
+    (let ((map (make-sparse-keymap)))
+      (set-keymap-parent map (current-local-map))
+      (define-key map (kbd "q") #'my/dired-restore-windows)
+      (use-local-map map))))
+
 (defun my/dired-restore-windows ()
-  "Dired restore windows."
   (interactive)
   (when my/dired-window-config
     (set-window-configuration my/dired-window-config)
     (setq my/dired-window-config nil)))
 
 (defun my/reload-config ()
-  "Reload config."
   (interactive)
   (load-file (expand-file-name "init.el" user-emacs-directory)))
 
 (defun bsh ()
-  "Buffer split horizontal."
   (interactive)
   (split-window-below)
   (other-window 1))
 
 (defun bsv ()
-  "Buffer split vertical."
   (interactive)
   (split-window-right)
   (other-window 1))
