@@ -1,4 +1,5 @@
-;;; init.el --- Personal Emacs configuration -*- lexical-binding: t -*-
+;;; init.el --- my config -*- lexical-binding: t -*-
+;;; Commentary: Personal Emacs configuration
 
 (setenv "PATH" (concat "/opt/homebrew/bin:" (getenv "PATH")))
 (add-to-list 'exec-path "/opt/homebrew/bin")
@@ -21,7 +22,6 @@
       make-backup-files nil
       auto-save-default nil
       create-lockfiles nil
-      native-comp-async-report-warnings-errors nil
       warning-minimum-level :error
       split-width-threshold 0
       split-height-threshold nil)
@@ -192,8 +192,7 @@
   (setq lsp-keymap-prefix "C-c l")
   :hook ((go-mode kotlin-mode lua-mode php-mode rust-mode typescript-mode yaml-mode zig-mode) . lsp-deferred)
   :config
-  (setq lsp-enable-snippet t
-        lsp-prefer-flymake nil)
+  (setq lsp-enable-snippet t)
   (with-eval-after-load 'lsp-mode
     (require 'lsp-json)
     (require 'lsp-yaml)))
@@ -238,7 +237,7 @@
   :diminish
   :demand t
   :config
-  (setq projectile-project-search-path '("~/projects/work" "~/projects/private"))
+  (setq projectile-project-search-path '("~/.config/" "~/projects/work" "~/projects/private"))
   (projectile-mode 1))
 
 (use-package perspective
@@ -259,6 +258,7 @@
   :config
   (general-create-definer my/leader :keymaps '(normal visual) :prefix "SPC")
   (my/leader
+    ":" '(execute-extended-command :which-key "M-x")
     "b" '(:ignore t :which-key "buffers")
     "bb" '(consult-buffer :which-key "switch")
     "bsh" '(bsh :which-key "hsplit")
@@ -306,6 +306,7 @@
 (defvar my/dired-window-config nil)
 
 (defun my/dired-maximize ()
+  "Dired maximize."
   (interactive)
   (setq my/dired-window-config (current-window-configuration))
   (dired default-directory)
@@ -316,21 +317,39 @@
     (use-local-map map)))
 
 (defun my/dired-restore-windows ()
+  "Dired restore windows."
   (interactive)
   (when my/dired-window-config
     (set-window-configuration my/dired-window-config)
     (setq my/dired-window-config nil)))
 
 (defun my/reload-config ()
+  "Reload config."
   (interactive)
   (load-file (expand-file-name "init.el" user-emacs-directory)))
 
 (defun bsh ()
+  "Buffer split horizontal."
   (interactive)
   (split-window-below)
   (other-window 1))
 
 (defun bsv ()
+  "Buffer split vertical."
   (interactive)
   (split-window-right)
   (other-window 1))
+
+;;; init.el ends here
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(native-comp-async-report-warnings-errors nil))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )

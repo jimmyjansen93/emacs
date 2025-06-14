@@ -32,6 +32,7 @@ network-security.data
 # Projectile
 .projectile
 projectile-bookmarks.eld
+var/
 
 # Recent files
 recentf
