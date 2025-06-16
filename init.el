@@ -1,11 +1,11 @@
 ;;; init.el --- Private emacs config -*- lexical-binding: t -*-
+;;;
 ;;; Commentary:
-;;;     MY private config where I just do whatever because I don't understand whatever
-;;;     the hell I am doing.
+;;;   MY private config where I just do whatever because I don't understand whatever
+;;;   the hell I am doing.
+;;;
 ;;; Code:
-(setenv "PATH" (concat "/opt/homebrew/bin:" (getenv "PATH")))
-(add-to-list 'exec-path "/opt/homebrew/bin")
-
+;;;
 (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 (when (file-exists-p custom-file) (load custom-file))
 
@@ -15,6 +15,7 @@
                          ("gnu"   . "https://elpa.gnu.org/packages/")))
 (package-initialize)
 
+;; Bootstrap straight.el
 (defvar bootstrap-version 6)
 (let ((bootstrap-file
        (expand-file-name "straight/repos/straight.el/bootstrap.el"
@@ -28,12 +29,22 @@
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
+;; Set up use-package and straight.el integration
 (setq straight-use-package-by-default t)
 (straight-use-package 'use-package)
 (require 'use-package)
 
+;; Ensure diminish is loaded so its keywords are available
+(use-package diminish :demand t)
+
 (setq use-package-expand-minimally t
       use-package-enable-imenu-support t)
+
+;; Set shell PATH for GUI Emacs on macOS
+(use-package exec-path-from-shell
+  :if (memq window-system '(mac ns x))
+  :config
+  (exec-path-from-shell-initialize))
 
 (setq inhibit-startup-message t
       ring-bell-function #'ignore
@@ -41,9 +52,12 @@
       auto-save-default nil
       create-lockfiles nil
       warning-minimum-level :error
-      split-width-threshold 0
       split-height-threshold nil
       scroll-margin 20)
+
+(setq-default indent-tabs-mode nil)
+(setq-default tab-width 2)
+(setq lisp-indent-offset 2)
 
 (set-face-attribute 'default nil :font "FiraCode Nerd Font" :height 130)
 
@@ -52,7 +66,6 @@
 (scroll-bar-mode -1)
 
 (global-display-line-numbers-mode 1)
-(setq display-line-numbers-mode-lighter "")
 (show-paren-mode 1)
 
 (use-package doom-themes
@@ -78,11 +91,11 @@
   :hook (after-init . doom-modeline-mode)
   :config
   (setq doom-modeline-major-mode-icon nil
-	doom-modeline-height 25
-	doom-modeline-position-line-format '("")
-	doom-modeline-workspace-name nil
-	doom-modeline-project-name nil
-	doom-modeline-display-default-persp-name nil
+        doom-modeline-height 25
+        doom-modeline-position-line-format '("")
+        doom-modeline-workspace-name nil
+        doom-modeline-project-name nil
+        doom-modeline-display-default-persp-name nil
         doom-modeline-buffer-file-name-style 'relative-to-project
         doom-modeline-buffer-encoding nil
         doom-modeline-percent-position nil
@@ -100,7 +113,9 @@
         evil-want-keybinding nil)
   :config
   (evil-mode 1)
-  (define-key evil-normal-state-map (kbd "C-w") 'evil-window-map))
+  (define-key evil-insert-state-map (kbd "C-SPC") #'completion-at-point)
+  (define-key evil-normal-state-map (kbd "C-w") 'evil-window-map)
+  (evil-ex-define-cmd "q[uit]" 'kill-this-buffer))
 
 (use-package evil-surround
   :after evil
@@ -165,18 +180,18 @@
 
 (use-package corfu
   :hook (after-init . global-corfu-mode)
-  :init
-  (setq corfu-auto t
-        corfu-cycle t
-        corfu-auto-prefix 2
-        corfu-auto-delay 0.0
-        corfu-popupinfo-delay '(0.5 . 0.2))
   :config
-  (corfu-popupinfo-mode))
+  (setq corfu-auto nil
+        corfu-cycle nil
+        corfu-popupinfo-delay '(0.5 . 0.2))
+  (corfu-popupinfo-mode)
+  (define-key corfu-map (kbd "C-y") #'corfu-complete)
+  (define-key corfu-map (kbd "TAB") nil)
+  (define-key corfu-map (kbd "<tab>") nil))
 
 (use-package cape
   :after corfu
-  :init
+  :config
   (add-to-list 'completion-at-point-functions #'cape-file)
   (add-to-list 'completion-at-point-functions #'cape-dabbrev))
 
@@ -184,15 +199,6 @@
   :after corfu
   :config
   (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
-
-(use-package helpful
-  :commands (helpful-callable helpful-variable helpful-key)
-  :config
-  (general-define-key
-    :keymaps 'help-map
-    "f" #'helpful-callable
-    "v" #'helpful-variable
-    "k" #'helpful-key))
 
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
@@ -230,24 +236,49 @@
   (popper-mode 1)
   (popper-echo-mode 1))
 
+(use-package editorconfig
+  :demand t
+  :config
+  (editorconfig-mode 1))
+
 (use-package format-all
   :hook (prog-mode . format-all-ensure-formatter))
 
 (use-package projectile
   :diminish
   :demand t
+  :init
+  (global-set-key (kbd "C-c p") 'projectile-command-map)
   :config
+  (projectile-mode 1)
+  (define-key projectile-mode-map (kbd "C-c C-p") 'projectile-command-map)
   (setq projectile-project-search-path
-        '("~/.config/" "~/projects/work" "~/projects/private"))
-  (projectile-discover-projects-in-search-path)
-  (projectile-mode 1))
+        '("~/.config/" "~/projects/work" "~/projects/private")
+        projectile-indexing-method 'alien
+        projectile-enable-caching 'persistent
+        projectile-require-project-root t
+        projectile-auto-cleanup-known-projects t)
+
+  (projectile-register-project-type 'cargo '("Cargo.toml")
+    :project-file "Cargo.toml"
+    :compilation-dir "target/debug"
+    :compile "cargo build"
+    :test "cargo test"
+    :run "cargo run")
+
+  (projectile-register-project-type 'go '("go.mod" ".go")
+    :project-file "go.mod"
+    :compilation-dir "."
+    :compile "go build"
+    :test "go test"
+    :run "go run")
+
+  (projectile-discover-projects-in-search-path))
 
 (use-package perspective
   :demand t
   :config
   (setq persp-suppress-no-prefix-key-warning t)
-  (setq persp-mode-hook-actions nil)
-  (setq persp-autokill-buffer-on-remove 'kill-weak)
   (persp-mode))
 
 (use-package persp-projectile
@@ -280,20 +311,23 @@
   :commands (lsp lsp-deferred)
   :init
   (setq lsp-keymap-prefix "C-c l"
-        lsp-headerline-breadcrumb-enable t
+        gc-cons-threshold (* 100 1024 1024)
+        lsp-idle-delay 0.500)
+  :config
+  (setq lsp-headerline-breadcrumb-enable t
         lsp-eldoc-render-all nil
-        lsp-json-schemas-update-on-startup t
-        lsp-enable-snippet t
-        lsp-lua-language-server-command '("/opt/homebrew/bin/lua-language-server"))
+        lsp-modeline-workspace-status-enable t
+        lsp-enable-snippet t)
+  (add-to-list 'lsp-disabled-clients 'lua-roblox-language-server)
   :hook ((go-mode
-           kotlin-mode
-           lua-mode
-           php-mode
-           js-mode
-           typescript-mode
-           rust-mode
-           yaml-mode
-           zig-mode) . lsp-deferred))
+          kotlin-mode
+          lua-mode
+          php-mode
+          js-mode
+          typescript-mode
+          rust-mode
+          yaml-mode
+          zig-mode) . lsp-deferred))
 
 (use-package lsp-ui
   :after lsp-mode
@@ -320,39 +354,115 @@
 (use-package evil-anzu
   :after (anzu evil))
 
+(use-package which-key
+  :diminish
+  :demand t
+  :config
+  (setq which-key-idle-delay 0.75)
+  (which-key-mode 1))
+
+(use-package general
+  :demand t
+  :config
+  (general-create-definer my/leader
+    :keymaps '(normal visual)
+    :prefix "SPC"))
+
+(use-package helpful
+  :after general
+  :commands (helpful-callable helpful-variable helpful-key)
+  :config
+  (general-define-key
+   :keymaps 'help-map
+   "f" #'helpful-callable
+   "v" #'helpful-variable
+   "k" #'helpful-key))
+
 (use-package rust-mode
   :mode "\\.rs\\'"
   :config
-  (setq rust-format-on-save t)
-  (general-define-key
-    :keymaps 'rust-mode-map
-    :prefix "SPC"
-    "cb" '(cargo-build :which-key "Cargo Build")
-    "ct" '(cargo-test :which-key "Cargo Test")
-    "cr" '(cargo-run :which-key "Cargo Run")
-    "cc" '(cargo-check :which-key "Cargo Check")
-    "cC" '(cargo-process-clippy :which-key "Cargo Clippy")))
+  (setq rust-format-on-save t))
 
 (use-package cargo
   :after rust-mode
   :hook (rust-mode . cargo-minor-mode))
+
+(use-package go-mode
+  :mode "\\.go\\'")
+
+(defun my/projectile-check-project ()
+  "Run the appropriate 'check' command for the current project."
+  (interactive)
+  (let ((project-type (projectile-project-type (projectile-project-root))))
+    (cond
+     ((eq project-type 'cargo)
+      (projectile-compile-project "cargo check"))
+     ((eq project-type 'go)
+      (projectile-compile-project "go vet ./..."))
+     (t (message "No 'check' command defined for project type: %s" project-type)))))
+
+(my/leader
+  "SPC" '(consult-find :which-key "Find File in Project")
+  ","   '(consult-recent-file :which-key "Find Recent File")
+  "."   '(find-file :which-key "Find File")
+  ":"   '(execute-extended-command :which-key "M-x")
+
+  "b" '(:ignore t :which-key "Buffers")
+  "bb" '(consult-buffer :which-key "Switch Buffer")
+  "bk" '(kill-this-buffer :which-key "Kill Current Buffer")
+  "bK" '(projectile-kill-buffers :which-key "Kill Project Buffers")
+
+  "c" '(:ignore t :which-key "Code")
+  "ca" '(lsp-execute-code-action :which-key "Code Action")
+  "cb" '(projectile-compile-project :which-key "Compile Project")
+  "cr" '(projectile-run-project :which-key "Run Project")
+  "cC" '(my/projectile-check-project :which-key "Check Project")
+  "cd" '(consult-lsp-diagnostics :which-key "Workspace Diagnostics")
+  "cD" '(flycheck-list-errors :which-key "Buffer Diagnostics")
+  "cf" '(lsp-format-buffer :which-key "Format Buffer")
+  "ch" '(lsp-describe-thing-at-point :which-key "Describe Symbol")
+  "ci" '(lsp-find-implementation :which-key "Find Implementation")
+  "cR" '(lsp-rename :which-key "Rename Symbol")
+  "cs" '(lsp-signature-help :which-key "Signature Help")
+  "ct" '(projectile-test-project :which-key "Test Project")
+
+  "f" '(:ignore t :which-key "Files")
+  "ff" '(find-file :which-key "Find File")
+  "fr" '(consult-recent-file :which-key "Recent Files")
+  "fs" '(save-buffer :which-key "Save File")
+
+  "g" '(:ignore t :which-key "Git")
+  "gg" '(magit-status :which-key "Magit Status")
+  "gb" '(magit-blame-addition :which-key "Blame")
+
+  "h" '(:ignore t :which-key "Help")
+  "hrr" '(my/reload-config :which-key "Reload Config")
+
+  "j" '(:ignore t :which-key "Jump")
+  "jj" '(avy-goto-char-2 :which-key "Avy to Char")
+
+  "p" '(:ignore t :which-key "Project")
+  "pf" '(projectile-find-file :which-key "Find File")
+  "pp" '(projectile-persp-switch-project :which-key "Switch Project Workspace")
+  "ps" '(persp-switch :which-key "Switch Perspective")
+
+  "s" '(:ignore t :which-key "Search")
+  "ss" '(consult-line :which-key "Search in Buffer")
+  "sp" '(consult-ripgrep :which-key "Search in Project (Ripgrep)")
+  "si" '(consult-imenu :which-key "Search Symbols (imenu)")
+
+  "t" '(:ignore t :which-key "Toggles")
+  "tv" '(vterm :which-key "Toggle Vterm")
+
+  "w" '(:ignore t :which-key "Window")
+  "wo" '(ace-window :which-key "Ace (Other) Window")
+  "wd" '(delete-window :which-key "Delete Window"))
 
 (use-package js2-mode
   :mode "\\.js\\'")
 
 (use-package typescript-mode
   :mode "\\.ts[x]?\\'")
-
-(use-package go-mode
-  :mode "\\.go\\'"
-  :config
-  (general-define-key
-    :keymaps 'go-mode-map
-    :prefix "SPC"
-    "cb" '(go-build :which-key "Go Build")
-    "ct" '(go-test :which-key "Go Test")
-    "cr" '(go-run :which-key "Go Run")
-    "cc" '(go-vet :which-key "Go Vet")))
 
 (use-package kotlin-mode :mode "\\.kt\\'")
 (use-package lua-mode :mode "\\.lua\\'")
@@ -366,76 +476,9 @@
   :defer t
   :commands vterm)
 
-(use-package which-key
-  :demand t
-  :diminish
-  :config (which-key-mode 1))
-
-(use-package general
-  :demand t
-  :config
-  (general-create-definer my/leader
-    :keymaps '(normal visual)
-    :prefix "SPC")
-
-  (my/leader
-    "SPC" '(consult-find :which-key "Find File in Project")
-    ","   '(consult-recent-file :which-key "Find Recent File")
-    "."   '(find-file :which-key "Find File")
-    ":"   '(execute-extended-command :which-key "M-x")
-
-    "b" '(:ignore t :which-key "Buffers")
-    "bb" '(consult-buffer :which-key "Switch Buffer")
-    "bk" '(kill-this-buffer :which-key "Kill Current Buffer")
-    "bK" '(projectile-kill-buffers :which-key "Kill Project Buffers")
-
-    "c" '(:ignore t :which-key "Code")
-    "ca" '(lsp-execute-code-action :which-key "Code Action")
-    "cb" '(projectile-compile-project :which-key "Compile Project")
-    "cd" '(consult-lsp-diagnostics :which-key "Workspace Diagnostics")
-    "cD" '(flycheck-list-errors :which-key "Buffer Diagnostics")
-    "cf" '(lsp-format-buffer :which-key "Format Buffer")
-    "ch" '(lsp-describe-thing-at-point :which-key "Describe Symbol")
-    "ci" '(lsp-find-implementation :which-key "Find Implementation")
-    "cR" '(lsp-rename :which-key "Rename Symbol")
-    "cs" '(lsp-signature-help :which-key "Signature Help")
-    "ct" '(projectile-test-project :which-key "Test Project")
-
-    "f" '(:ignore t :which-key "Files")
-    "ff" '(find-file :which-key "Find File")
-    "fr" '(consult-recent-file :which-key "Recent Files")
-    "fs" '(save-buffer :which-key "Save File")
-
-    "g" '(:ignore t :which-key "Git")
-    "gg" '(magit-status :which-key "Magit Status")
-    "gb" '(magit-blame-addition :which-key "Blame")
-
-    "h" '(:ignore t :which-key "Help")
-    "hrr" '(my/reload-config :which-key "Reload Config")
-
-    "j" '(:ignore t :which-key "Jump")
-    "jj" '(avy-goto-char-2 :which-key "Avy to Char")
-
-    "p" '(:ignore t :which-key "Project")
-    "pf" '(projectile-find-file :which-key "Find File")
-    "pp" '(projectile-persp-switch-project :which-key "Switch Project Workspace")
-    "ps" '(persp-switch :which-key "Switch Perspective")
-
-    "s" '(:ignore t :which-key "Search")
-    "ss" '(consult-line :which-key "Search in Buffer")
-    "sp" '(consult-ripgrep :which-key "Search in Project (Ripgrep)")
-    "si" '(consult-imenu :which-key "Search Symbols (imenu)")
-
-    "t" '(:ignore t :which-key "Toggles")
-    "tv" '(vterm :which-key "Toggle Vterm")
-
-    "w" '(:ignore t :which-key "Window")
-    "wo" '(ace-window :which-key "Ace (Other) Window")
-    "wd" '(delete-window :which-key "Delete Window")))
-
-(define-key evil-ex-map "q" 'kill-this-buffer)
-
 (defun my/reload-config ()
-  "Reload the emacs configuration."
+  "Reload the Emacs configuration."
   (interactive)
   (load-file user-init-file))
+
+;;; init.el ends here
